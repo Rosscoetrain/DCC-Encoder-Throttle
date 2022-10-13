@@ -20,15 +20,35 @@ byte Key;
 char key ;
 int LED = 13; // LED to blink when DCC packets are sent in loop
 byte Fx = 0;
-// Array set for 4 Loco2 - change the 7 numbers in the next 7 declarations
-int maxLocos = 4;// number of loco addresses
-//int LocoAddress[4] = {1830, 3, 999, 4444};
-int LocoAddress[4] = {3, 5, 13, 14};
-int LocoDirection[4] = {1, 1, 1, 1};
-int LocoSpeed[4] = {0, 0, 0, 0};
-byte LocoFN0to4[4];
-byte LocoFN5to8[4];
-byte Locofn9to12[4];// 9-12 not yet implemented
+
+// change the value in defines.h for MAXLOCOS
+
+int maxLocos = MAXLOCOS;// number of loco addresses
+
+/*
+ * locomotive data storage
+ */
+
+int LocoAddress[MAXLOCOS] = {5, 13, 14, 99};
+int LocoDirection[MAXLOCOS] = {1, 1, 1, 1};
+int LocoSpeed[MAXLOCOS] = {0, 0, 0, 0};
+byte LocoFN0to4[MAXLOCOS];
+byte LocoFN5to8[MAXLOCOS];
+byte Locofn9to12[MAXLOCOS];// 9-12 not yet implemented
+
+
+/*
+ * Loco descriptions, these all need to be the same length otherwise EEPROM.get gets confused.
+ * 
+ */
+
+String LocoDefs[4] = {"Marklin 3000    ",
+                      "Marklin 3056    ",
+                      "Marklin 3005    ",
+                      "LaisDCC Tester  "
+                     };
+
+
 int xxxxx = 0;
 int pot1Pin = A3;
 int potValue = 0;
@@ -68,14 +88,12 @@ Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 #endif
 
 /*
- *  4 x 1 keypad is wired as
+ *  1 x 4 keypad is wired as
  *  1 = common
  *  2 = switch 2
  *  3 = switch 1
  *  4 = switch 4
  *  5 = switch 3
- *  
- *  
  */
 
 #ifdef KEY1x4
@@ -100,7 +118,11 @@ unsigned long previousMillis = 0;        // will store last time LED was updated
 unsigned long currentMillis = millis();
 const long interval = 300;
 
+
+
 int debug = 0; // set to 1 to show debug info on serial port - may cause issues with DCC++ depending on what is sent
+               // set to 2 to show descriptions written to eeprom
+
 
 #ifdef SERLCD
 // Attach the serial enabled LCD's RX line to digital pin 12
@@ -110,3 +132,50 @@ SoftwareSerial lcd(13, 12);          // Arduino SS_RX = pin 13 (unused), Arduino
 #ifdef I2CLCD
 SerLCD lcd; // Initialize the library with default I2C address 0x72
 #endif
+
+#ifdef LCD1602
+const byte lineLength = 16;
+const byte lines = 2;
+const byte line1 = 128;         // this is the number of the first character on the line add to postion on line to set cursor position
+const byte line2 = 192;
+#endif
+
+#ifdef LCD1604
+const byte lineLength = 16;
+const byte lines = 4;
+const byte line1 = 128;
+const byte line2 = 192;
+const byte line3 = 144;
+const byte line4 = 208;
+#endif
+
+#ifdef LCD2002
+const byte lineLength = 20;
+const byte lines = 2;
+const byte line1 = 128;
+const byte line2 = 192;
+#endif
+
+#ifdef LCD2004
+const byte lineLength = 20;
+const byte lines = 4;
+const byte line1 = 128;
+const byte line2 = 192;
+const byte line3 = 148;
+const byte line4 = 212;
+#endif
+
+/*
+ * EEPROM addresses
+ * 
+ */
+
+const int eepromAddressLocoAddress = 0;
+const int eepromAddressLocoMaxLocos = 40;
+const int eepromAddressLocoDescriptions = 100;
+
+/*
+ * current backlight brightness  0x80 (128) - 0x9D (157)
+ */
+
+byte backLightBrightness = 157;           // full brightness
