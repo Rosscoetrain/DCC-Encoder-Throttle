@@ -3,51 +3,19 @@
 
   rosscoe revised 10-10-2022
 */
+#include "defines.h"
+
 #include "Arduino.h"
-const int ledPin =  13;      // the number of the LED pin
-int buttonPin = 4; // button on rotary
-static int pinA = 2; // Rotary Encoder
-static int pinB = 3; // Rotary Encoder
-volatile byte aFlag = 0;
-volatile byte bFlag = 0;
-volatile byte encoderPos = 0;
-volatile byte oldEncPos = 0;
-volatile byte reading = 0;
-int old_pos = encoderPos;
-int dir = 0; // direction
-int buttonState = 0;
-int encoderChange = 0; // flag to show encoder changed
-byte Key;
+
 #include<EEPROM.h>
-char key ;
-int LED = 13; // LED to blink when DCC packets are sent in loop
-byte Fx = 0;
-// Array set for 4 Loco2 - change the 7 numbers in the next 7 declarations
-int maxLocos = 4;// number of loco addresses
-//int LocoAddress[4] = {1830, 3, 999, 4444};
-int LocoAddress[4] = {3, 5, 13, 14};
-int LocoDirection[4] = {1, 1, 1, 1};
-int LocoSpeed[4] = {0, 0, 0, 0};
-byte LocoFN0to4[4];
-byte LocoFN5to8[4];
-byte Locofn9to12[4];// 9-12 not yet implemented
-int xxxxx = 0;
-int pot1Pin = A3;
-int potValue = 0;
-int NewPotValue = 0;
-int potValueOld = 0;
-int counter = 0;
-int Trigger1 = 3;
-int Trigger2 = 4;
-//int TrigVal1 = 0;
-//int TrigVal2 = 0;
-int old_speed = 0;
-int ZeroSpeedFlag = 0;
-int ActiveAddress = 0; // make address1 active
+
+#ifdef I2CLCD
+#include <Wire.h>
+#include <Serlcd.h>
+#endif
 
 /*
-#include <Wire.h>
-#include <LCD.h>
+#include <lcd.h>
 #include <LiquidCrystal_I2C.h>
 #define I2C_ADDR    0x27 // <<----- Add your address here.  Find it from I2C Scanner
 #define BACKLIGHT_PIN     3
@@ -61,68 +29,13 @@ int ActiveAddress = 0; // make address1 active
 LiquidCrystal_I2C lcd(I2C_ADDR, En_pin, Rw_pin, Rs_pin, D4_pin, D5_pin, D6_pin, D7_pin);
 */
 
-
+#ifdef SERLCD
 #include <SoftwareSerial.h>
-
-// Attach the serial enabld LCD's RX line to digital pin 11
-SoftwareSerial LCD(13, 12); // Arduino SS_RX = pin 13 (unused), Arduino SS_TX = pin 12 
-
-char tempstring[10];
-
-
-int z = 0;
-int powerTemp = 0;
-int i = 0;
-char VersionNum[] = "3.0a"; ///////////////////////// //////////////////////VERSION HERE///////
+#endif
 
 #include <Keypad.h>
-/*
-const byte ROWS = 4; //four rows
-const byte COLS = 3; //three columns
-char keys[ROWS][COLS] = {
-  {'1', '2', '3'},
-  {'4', '5', '6'},
-  {'7', '8', '9'},
-  {'*', '0', '#'}
-};
-byte rowPins[ROWS] = {5, 6, 7, 8 }; //{8,7,6,5 }; //connect to the row pinouts of the keypad
-byte colPins[COLS] = {9, 10, 11}; // {11,10,9}; //connect to the column pinouts of the keypad
-Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
-*/
 
-/*
- *  4 x 1 keypad is wired as
- *  1 = common
- *  2 = switch 2
- *  3 = switch 1
- *  4 = switch 4
- *  5 = switch 3
- *  
- *  
- */
-
-const byte ROWS = 4; //four rows
-const byte COLS = 1; //one column
-char keys[ROWS][COLS] = {
-  {'#'},
-  {'1'},
-  {'2'},
-  {'3'}
-};
-byte rowPins[ROWS] = {5, 6, 7, 8 };   //{8,7,6,5 }; //connect to the row pinouts of the keypad
-byte colPins[COLS] = {10};             // {9};       //connect to the column pinout of the keypad
-Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
-
-
-
-//byte ledPin = 13;
-boolean blink = false;
-boolean ledPin_state;
-unsigned long previousMillis = 0;        // will store last time LED was updated
-unsigned long currentMillis = millis();
-const long interval = 300;
-
-int debug = 0; // set to 1 to show debug info on serial port - may cause issues with DCC++ depending on what is sent
+#include "variables.h"
 
 void setup() {
 //  saveAddresses();
@@ -138,33 +51,34 @@ void setup() {
   //  digitalWrite(Trigger2, HIGH);// turn on pullup resistors
   // randomSeed(analogRead(0));
   pinMode(LED, OUTPUT);
+
+#ifdef I2CLCD
 /*
   lcd.begin (16, 2); //  LCD is 16 characters x 2 lines
   lcd.setBacklightPin(BACKLIGHT_PIN, POSITIVE);
   lcd.setBacklight(HIGH);  // Switch on the backlight
   lcd.home (); // go home
 */
-  LCD.begin(9600);
+#endif
+
 
   Serial.begin (115200);
   getAddresses();  // read eeprom
 
-// clear lcd puts cursor to start of line 1
-  LCD.write(254);
-  LCD.write(1);
+#ifdef SERLCD
+  lcd.begin(9600);     // initialize with software serial
+  lcd.write(254);                            //Clear the display - this moves the cursor to home position as well
+  lcd.write(1);
 
-// move cursor to beginning of first line
-//  LCD.write(254); 
-//  LCD.write(128);
+  lcd.print("Hold button to");
+  lcd.write(254);
+  lcd.write(128 + 64);
 
-  LCD.write("Hold button to");
+  lcd.print("vary MaxLocos ");
+  lcd.print(maxLocos);
+#endif
 
-// move cursor to beginning of second line
-  LCD.write(254); 
-  LCD.write(128 + 64);
-
-  LCD.write("vary MaxLocos ");
-  
+#ifdef I2CLCD  
 /*
   lcd.setCursor(0, 0);
   lcd.print("Hold button to");
@@ -172,20 +86,22 @@ void setup() {
   lcd.print("vary MaxLocos ");
   lcd.print(maxLocos);
 */
+#endif
+
   delay(1000);
   buttonState = digitalRead(buttonPin);
   // Serial.println(buttonState);
 
-/*
+
   if (buttonState == LOW) {
     getNumberOfLocos();
     //    do {  // routine to stay here till button released & not toggle direction
     //      buttonState = digitalRead(buttonPin);
     //    }      while (buttonState == LOW);
   }
-*/
 
-/*
+
+#ifdef I2CLCD
   lcd.clear();
   lcd.print("DCC++ Throttle");
   lcd.setCursor(0, 1);
@@ -193,18 +109,18 @@ void setup() {
   for (int i = 0; i < 4; i++) {
     lcd.print(VersionNum[i]);
   }
-*/
+#endif
+
+#ifdef SERLCD
 // clear lcd
-  LCD.write(254);
-  LCD.write(1);
-
-  LCD.write("DCC++ Throttle");
-
-  LCD.write(254);
-  LCD.write(128 + 64);
-
-  LCD.write("10-10-22 v");
-  LCD.write(VersionNum);
+  lcd.write(254);
+  lcd.write(1);
+  lcd.print("DCC++ Throttle");
+  lcd.write(254);
+  lcd.write(128 + 64);
+  lcd.print("10-10-22 v");
+  lcd.print(VersionNum);
+#endif
 
   Serial.print("10-10-2022  version ");
   for (int i = 0; i < 4; i++) {
@@ -217,12 +133,16 @@ void setup() {
   digitalWrite(ledPin, HIGH);           // Turn the LED on.
   ledPin_state = digitalRead(ledPin);   // Store initial LED state. HIGH when LED is on.
   keypad.addEventListener(keypadEvent); // Add an event listener for this keypad
-/*
+
+#ifdef I2CLCD
   lcd.clear();
-*/
+#endif
+
+#ifdef SERLCD
 // clear lcd
-  LCD.write(254);
-  LCD.write(1);
+  lcd.write(254);
+  lcd.write(1);
+#endif
   
   doMainLCD();
 }  // END SETUP
@@ -230,24 +150,26 @@ void setup() {
 void getNumberOfLocos() {
   //maxLocos = 4;// number of loco addresses
 
-/*
+#ifdef I2CLCD
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Loco # now = ");
   lcd.print(maxLocos);
   lcd.setCursor(0, 1);
   lcd.print("new # (1-4) ");
-*/
+#endif
 
-  LCD.write(254);
-  LCD.write(1);
-  LCD.write("Loco # now = ");
+#ifdef SERLCD
+  lcd.write(254);
+  lcd.write(1);
+  lcd.write("Loco # now = ");
   sprintf(tempstring,"%2d",maxLocos);
 
-  LCD.write(tempstring);
-  LCD.write(254);
-  LCD.write(128 + 64);
-  LCD.write("new # (1-4) ");
+  lcd.write(tempstring);
+  lcd.write(254);
+  lcd.write(128 + 64);
+  lcd.write("new # (1-4) ");
+#endif
 
   do {
     key = keypad.getKey();
@@ -259,11 +181,8 @@ void getNumberOfLocos() {
       maxLocos = key + 1;
       if (debug == 1)    Serial.print("new maxLocos = ");
       if (debug == 1)  Serial.println(maxLocos);
-/*
+
       lcd.print(maxLocos);
-*/
-      sprintf(tempstring,"%2d",maxLocos);
-      LCD.write(tempstring);
 
       delay(1400);
       saveAddresses();
@@ -339,18 +258,19 @@ void getEncoder() {
 //START DO FUNCTION BUTTONS
 int doFunction() {
   key = key - 48 - 1; // convert from ascii value
-/*
+
+#ifdef I2CLCD
   lcd.setCursor (14, 1);       // go to end of 2nd line
+#endif
+
+#ifdef SERLCD
+  lcd.write(254);
+  lcd.write(128 + 64 + 14);
+#endif
+
   ///  lcd.print("FN code ");
   lcd.print(key, DEC + 1);
-*/
 
-  LCD.write(254);
-  LCD.write(128 + 64 + 14);
-
-  sprintf(tempstring,"%2d",key);
-  LCD.write(tempstring);
-  
   if (debug == 1) Serial.print("got a keypad button ");
   if (debug == 1) Serial.println(key, DEC);
   if (key <= 4) {
@@ -386,15 +306,17 @@ int doFunction() {
   }
   if (key == -1)
   {
-/*
+#ifdef I2CLCD
     lcd.setCursor (14, 1);       // go to end of 2nd line
+#endif
+
+#ifdef SERLCD
+  lcd.write(254);
+  lcd.write(128 + 64 + 14);
+#endif
+
     ///    lcd.print("FN code ");
     lcd.print(key, DEC);
-*/
-  LCD.write(254);
-  LCD.write(128 + 64 + 14);
-  sprintf(tempstring,"%2d",key);
-  LCD.write(tempstring);
 
     key = 0;
     LocoFN0to4[ActiveAddress] = B00000000; //clear variables for which functions are set
@@ -412,23 +334,27 @@ int doFunction() {
 void showFirstLine() {
   // break;
   if (debug == 1) Serial.println(" ");
-/*
+
+#ifdef I2CLCD
   lcd.setCursor(0, 0);
   lcd.print("                ");// clear
   lcd.setCursor(0, 0);
+#endif
+
+#ifdef SERLCD
+  lcd.write(254);
+  lcd.write(128);
+  lcd.print("                ");// clear
+  lcd.write(254);
+  lcd.write(128);
+#endif
+
   lcd.print("L");
   lcd.print(ActiveAddress + 1);
   lcd.print(" = ");
   lcd.print(LocoAddress[ActiveAddress]);
-*/
-  LCD.write(254);
-  LCD.write(1);
-  LCD.write("L");
-  LCD.write(ActiveAddress + 1);
-  LCD.write(" = ");
-  sprintf(tempstring,"%2d",LocoAddress[ActiveAddress]);
-  LCD.write(tempstring);
-  
+
+
   for (int zzz = 0; zzz <= 3; zzz++) {
     if (debug == 1) Serial.print("add # ");
     if (debug == 1) Serial.print(zzz + 1);
@@ -442,18 +368,20 @@ void getLocoAddress() {
   Serial.print("<0>");// power off to DCC++ unit
   int total = 0;
   counter = 0;
-/*
+
+#ifdef I2CLCD
   lcd.clear();
   lcd.setCursor(0, 0);
+#endif
+
+#ifdef SERLCD
+  lcd.write(254);
+  lcd.write(1);
+#endif
+
   lcd.print("Set Dcc Addr # ");
   lcd.print(ActiveAddress + 1);
-*/
-  LCD.write(254);
-  LCD.write(1);
-  LCD.write("Set Dcc Addr # ");
-  sprintf(tempstring,"%2d",ActiveAddress + 1);
-  LCD.write(tempstring);
-  
+
   if (debug == 1) Serial.println(" @ top");
   do {
     //  TrigVal2 = digitalRead(Trigger2);   // read the input pin
@@ -470,29 +398,23 @@ void getLocoAddress() {
       total = total * 10 + number;
       if (debug == 1) Serial.print("TOTAL = ");
       if (debug == 1) Serial.println(total);
-/*
+
+#ifdef I2CLCD
       lcd.setCursor(0, 1);
-*/
-      LCD.write(254);
-      LCD.write(128);
+#endif
+
+#ifdef SERLCD
+      lcd.write(254);
+      lcd.write(128);
+#endif
 
       if (total == 0) {   // print multiple zeros for leading zero number
         for (int tempx = 1; tempx <= counter; tempx++) {
-/*
           lcd.print("0");
-*/
-
-      LCD.write("0");
-
         }
       }
       else {
-/*
         lcd.print(total);
-*/
-        sprintf(tempstring, "%2d", total);
-        LCD.write(tempstring);
-      
       }
       if (debug == 1) Serial.print("Counter = ");
       if (debug == 1) Serial.print(counter);
@@ -505,11 +427,13 @@ void getLocoAddress() {
   while (counter <= 3); //  collect exactly 4 digits
   LocoAddress[ActiveAddress] = total;
   saveAddresses();
-/*
+#ifdef I2CLCD
   lcd.clear();
-*/
-  LCD.write(254);
-  LCD.write(1);
+#endif
+#ifdef SERLCD
+  lcd.write(254);
+  lcd.write(1);
+#endif
 
   doMainLCD();
 }
@@ -627,7 +551,7 @@ void saveAddresses() {
 }
 
 void doMainLCD() {
-/*
+#ifdef I2CLCD
   lcd.setCursor(0, 0);
   lcd.print("S=");
   lcd.print(LocoSpeed[ActiveAddress], DEC);
@@ -658,57 +582,63 @@ void doMainLCD() {
   tlen = temp.length() - 4;
   lcd.setCursor(0, 1); // start of 2nd line
   lcd.print(temp.substring(tlen));
-*/
-  LCD.write(254);
-  LCD.write(1);
-  LCD.write("S=");
+#endif
+
+#ifdef SERLCD
+  lcd.write(254);
+  lcd.write(1);
+  lcd.write("S=");
   sprintf(tempstring,"%2d", LocoSpeed[ActiveAddress]);
-  LCD.write(tempstring);
-  LCD.write(" ");
-  LCD.write(254);
-  LCD.write(128 + 5);
+  lcd.write(tempstring);
+  lcd.write(" ");
+  lcd.write(254);
+  lcd.write(128 + 5);
   if (LocoDirection[ActiveAddress] == 1 ) {
-//    lcd.print(" > ");
-    LCD.write(" > ");
+    lcd.print(" > ");
   }
   else {
-//    lcd.print(" < ");
-    LCD.write(" < ");
+    lcd.print(" < ");
   }
-  LCD.write(254);
-  LCD.write(128 + 8);
-  LCD.write("L=");
-//  if (LocoAddress[ActiveAddress] <= 9) {
-//    lcd.print("0");  // add leading zero for single digit addresses
-//    LCD.write("0");
-//  }
+  lcd.write(254);
+  lcd.write(128 + 8);
+  lcd.print("L=");
+
   sprintf(tempstring,"%02d",LocoAddress[ActiveAddress]);
-  LCD.write(tempstring);
-  LCD.write("    ");
-  LCD.write(254);
-  LCD.write(128 + 13);
-  LCD.write("#");
-  LCD.write(254);
-  LCD.write(128 + 14);
+  lcd.write(tempstring);
+  lcd.write("    ");
+  lcd.write(254);
+  lcd.write(128 + 13);
+  lcd.write("#");
+  lcd.write(254);
+  lcd.write(128 + 14);
   sprintf(tempstring,"%2d",ActiveAddress + 1);
-  LCD.write(tempstring);
-  LCD.write(254);
-  LCD.write(128 + 64 + 5);
+  lcd.print(tempstring);
+  lcd.write(254);
+  lcd.write(128 + 64 + 5);
+#endif
+
   String temp = "0000" + String(LocoFN0to4[ActiveAddress], BIN);  // pad with leading zeros
   int tlen = temp.length() - 5;
-//  lcd.print(temp.substring(tlen));
-  temp.substring(tlen).toCharArray(tempstring, 10);
-  LCD.write(tempstring);
+
+  lcd.print(temp.substring(tlen));
+
   temp = "000" + String(LocoFN5to8[ActiveAddress], BIN);
   tlen = temp.length() - 4;
-/*
+
+
+#ifdef I2CLCD
   lcd.setCursor(0, 1); // start of 2nd line
+#endif
+
+#ifdef SERLCD
+  lcd.write(254);
+  lcd.write(128 + 64);
+#endif
   lcd.print(temp.substring(tlen));
-*/
-  LCD.write(254);
-  LCD.write(128 + 64);
-  temp.substring(tlen).toCharArray(tempstring, 10);
-  LCD.write(tempstring);
+
+//  temp.substring(tlen).toCharArray(tempstring, 10);
+//  lcd.print(tempstring);
+
 }
 
 void PinA() {
