@@ -27,10 +27,14 @@
  * 
  * EEPROM space allows upto 20 locos
  * 
+ * a change to this will need to rerun saveAddresses and saveDescriptions
+ *   uncomment #define FIRSTRUN to do so
+ * 
+ * also need to update loco status arrays in variables.h
  */
 
-#define MAXLOCOS 4
-
+#define MAXLOCOS 6
+//#define FIRSTRUN//
 
 //#define I2CLCD
 #define SERLCD

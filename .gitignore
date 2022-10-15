@@ -1,2 +1,5 @@
-hardware/*.jpg
+hardware/images
+hardware/*.dxf
+hardware/*.stl
+hardware/*.FCStd*
 
